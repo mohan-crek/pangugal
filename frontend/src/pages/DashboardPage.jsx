@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 import api from '../api/axios';
 
 export default function DashboardPage() {
@@ -70,10 +71,16 @@ export default function DashboardPage() {
                 {g.description && <p style={S.cardDesc}>{g.description}</p>}
                 <span style={S.cardMeta}>{g.memberCount} member{g.memberCount !== 1 ? 's' : ''} · {g.currency}</span>
               </div>
+              <div style={S.cardTotal}>
+                <span style={S.cardTotalLabel}>Total spent</span>
+                <span style={S.cardTotalAmount}>₹{(g.totalExpenseRupees || 0).toFixed(2)}</span>
+              </div>
               <span style={S.arrow}>›</span>
             </div>
           ))}
         </div>
+
+        <Footer />
 
         {/* Create Group Modal */}
         {showCreate && (
@@ -115,6 +122,9 @@ const S = {
   cardDesc: { fontSize: 13, color: '#888', marginBottom: 2 },
   cardMeta: { fontSize: 12, color: '#aaa' },
   arrow: { fontSize: 22, color: '#ccc' },
+  cardTotal: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, marginRight: 8 },
+  cardTotalLabel: { fontSize: 11, color: '#aaa', textTransform: 'uppercase', letterSpacing: 0.4 },
+  cardTotalAmount: { fontSize: 16, fontWeight: 700, color: '#667eea' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 },
   modal: { background: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 12 },
   modalTitle: { fontSize: 18, fontWeight: 700, marginBottom: 4 },

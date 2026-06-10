@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 import AddExpenseModal from '../components/AddExpenseModal';
+import EditExpenseModal from '../components/EditExpenseModal';
 import InviteMemberModal from '../components/InviteMemberModal';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
@@ -16,6 +18,7 @@ export default function GroupPage() {
   const qc = useQueryClient();
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(null);
   const [activeTab, setActiveTab] = useState('expenses');
 
   const { data: groupData, isLoading: groupLoading } = useQuery({
@@ -32,6 +35,13 @@ export default function GroupPage() {
     queryKey: ['groupDashboard', groupId],
     queryFn: () => api.get(`/dashboard/groups/${groupId}`).then(r => r.data),
   });
+
+  async function openEdit(exp) {
+    // fetch splits to pre-check the right members
+    const res = await api.get(`/groups/${groupId}/expenses/${exp._id}`);
+    const splitUserIds = res.data.splits.map(s => s.owedByUserId._id);
+    setEditingExpense({ ...exp, existingSplitUserIds: splitUserIds });
+  }
 
   const settleUp = useMutation({
     mutationFn: ({ owedByUserId }) => api.post(`/dashboard/groups/${groupId}/settle`, { owedByUserId }),
@@ -104,7 +114,10 @@ export default function GroupPage() {
                 <div style={S.expRight}>
                   <span style={S.expAmount}>₹{(exp.totalAmountPaisa / 100).toFixed(2)}</span>
                   {exp.createdBy === user?._id && (
-                    <button style={S.delBtn} onClick={() => { if (window.confirm('Delete this expense?')) deleteExpense.mutate(exp._id); }}>✕</button>
+                    <div style={S.expActions}>
+                      <button style={S.editBtn} onClick={() => openEdit(exp)}>✎</button>
+                      <button style={S.delBtn} onClick={() => { if (window.confirm('Delete this expense?')) deleteExpense.mutate(exp._id); }}>✕</button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -115,16 +128,29 @@ export default function GroupPage() {
         {/* Balances Tab */}
         {activeTab === 'balances' && (
           <div style={S.list}>
-            {balances.length === 0 && <p style={S.empty}>Everyone is settled up!</p>}
-            {balances.map((b, i) => (
-              <div key={i} style={S.balCard}>
-                <div style={S.avatar}>{b.user?.name?.[0]?.toUpperCase()}</div>
-                <span style={S.balName}>{b.user?.name}</span>
-                <span style={{ ...S.balAmount, color: b.netAmount >= 0 ? '#38a169' : '#e53e3e' }}>
-                  {b.netAmount >= 0 ? `gets back ₹${b.netAmount.toFixed(2)}` : `owes ₹${Math.abs(b.netAmount).toFixed(2)}`}
-                </span>
+            {dashData?.totalGroupExpense !== undefined && (
+              <div style={S.totalBanner}>
+                <span style={S.totalLabel}>Total Group Expenses</span>
+                <span style={S.totalAmount}>₹{(dashData.totalGroupExpense || 0).toFixed(2)}</span>
               </div>
-            ))}
+            )}
+            {balances.length === 0 && <p style={S.empty}>Everyone is settled up!</p>}
+            {balances.map((b, i) => {
+              const spendPaisa = dashData?.spendMap?.[b.user?._id] || 0;
+              const spendRupees = (spendPaisa / 100).toFixed(2);
+              return (
+                <div key={i} style={S.balCard}>
+                  <div style={S.avatar}>{b.user?.name?.[0]?.toUpperCase()}</div>
+                  <div style={S.balBody}>
+                    <span style={S.balName}>{b.user?.name}</span>
+                    <span style={S.balShare}>Individual share: ₹{spendRupees}</span>
+                  </div>
+                  <span style={{ ...S.balAmount, color: b.netAmount >= 0 ? '#38a169' : '#e53e3e' }}>
+                    {b.netAmount >= 0 ? `gets back ₹${b.netAmount.toFixed(2)}` : `owes ₹${Math.abs(b.netAmount).toFixed(2)}`}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -155,8 +181,11 @@ export default function GroupPage() {
         )}
       </div>
 
+      <Footer />
+
       {showAddExpense && <AddExpenseModal groupId={groupId} members={members} onClose={() => setShowAddExpense(false)} />}
       {showInvite && <InviteMemberModal groupId={groupId} onClose={() => setShowInvite(false)} />}
+      {editingExpense && <EditExpenseModal groupId={groupId} members={members} expense={editingExpense} onClose={() => setEditingExpense(null)} />}
     </div>
   );
 }
@@ -189,13 +218,20 @@ const S = {
   catBadge: { marginLeft: 8, background: '#f0f0ff', color: '#667eea', padding: '1px 8px', borderRadius: 10, fontSize: 11 },
   expRight: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 },
   expAmount: { fontSize: 17, fontWeight: 700, color: '#1a1a2e' },
+  expActions: { display: 'flex', gap: 6, alignItems: 'center' },
+  editBtn: { background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', fontSize: 15, padding: '2px 4px' },
   delBtn: { background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', fontSize: 13 },
   balCard: { background: '#fff', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' },
-  balName: { flex: 1, fontSize: 15, fontWeight: 500 },
+  balBody: { flex: 1, display: 'flex', flexDirection: 'column', gap: 2 },
+  balName: { fontSize: 15, fontWeight: 600 },
+  balShare: { fontSize: 12, color: '#888' },
   balAmount: { fontSize: 15, fontWeight: 700 },
   simplCard: { background: '#fff', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' },
   simplText: { fontSize: 15, color: '#333' },
   simplAmount: { color: '#e53e3e', fontWeight: 700 },
   settleBtn: { padding: '7px 14px', background: '#38a169', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 },
   simplNote: { fontSize: 12, color: '#aaa', textAlign: 'center', padding: '8px 0' },
+  totalBanner: { background: 'linear-gradient(135deg, #667eea, #764ba2)', borderRadius: 12, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  totalLabel: { fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: 500 },
+  totalAmount: { fontSize: 24, fontWeight: 800, color: '#fff' },
 };

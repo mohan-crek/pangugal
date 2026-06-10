@@ -1,6 +1,7 @@
 const Group = require('../models/Group');
 const GroupMember = require('../models/GroupMember');
 const User = require('../models/User');
+const Expense = require('../models/Expense');
 
 async function createGroup(req, res) {
   try {
@@ -30,7 +31,19 @@ async function listGroups(req, res) {
     const countMap = {};
     counts.forEach(c => { countMap[c._id.toString()] = c.count; });
 
-    const result = groups.map(g => ({ ...g.toObject(), memberCount: countMap[g._id.toString()] || 0 }));
+    // attach total expenses per group
+    const totals = await Expense.aggregate([
+      { $match: { groupId: { $in: groupIds } } },
+      { $group: { _id: '$groupId', totalPaisa: { $sum: '$totalAmountPaisa' } } },
+    ]);
+    const totalMap = {};
+    totals.forEach(t => { totalMap[t._id.toString()] = t.totalPaisa; });
+
+    const result = groups.map(g => ({
+      ...g.toObject(),
+      memberCount: countMap[g._id.toString()] || 0,
+      totalExpenseRupees: parseFloat(((totalMap[g._id.toString()] || 0) / 100).toFixed(2)),
+    }));
     res.json({ groups: result });
   } catch (err) {
     res.status(500).json({ message: err.message });

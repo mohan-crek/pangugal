@@ -1,6 +1,7 @@
 const ExpenseSplit = require('../models/ExpenseSplit');
 const GroupMember = require('../models/GroupMember');
 const User = require('../models/User');
+const Expense = require('../models/Expense');
 const { computeBalances, simplifyDebts } = require('../services/debt.service');
 
 function paisaToRupees(p) {
@@ -47,7 +48,14 @@ async function groupDashboard(req, res) {
       spendMap[uid] = (spendMap[uid] || 0) + s.amountPaisa;
     });
 
-    res.json({ balances, simplifiedTransactions: transactions, spendMap });
+    // Total group expense
+    const totalAgg = await Expense.aggregate([
+      { $match: { groupId: require('mongoose').Types.ObjectId.createFromHexString(groupId) } },
+      { $group: { _id: null, total: { $sum: '$totalAmountPaisa' } } },
+    ]);
+    const totalGroupExpense = parseFloat(((totalAgg[0]?.total || 0) / 100).toFixed(2));
+
+    res.json({ balances, simplifiedTransactions: transactions, spendMap, totalGroupExpense });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

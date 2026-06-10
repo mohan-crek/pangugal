@@ -91,6 +91,56 @@ async function getExpense(req, res) {
   }
 }
 
+async function editExpense(req, res) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const { groupId, expenseId } = req.params;
+    const { description, category, totalAmount, splitAmong } = req.body;
+
+    const expense = await Expense.findOne({ _id: expenseId, groupId });
+    if (!expense) return res.status(404).json({ message: 'Expense not found' });
+    if (expense.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Only the creator can edit this expense' });
+    }
+
+    if (!splitAmong || !Array.isArray(splitAmong) || splitAmong.length === 0) {
+      return res.status(400).json({ message: 'splitAmong is required' });
+    }
+
+    const totalAmountPaisa = Math.round(parseFloat(totalAmount) * 100);
+    if (totalAmountPaisa <= 0) return res.status(400).json({ message: 'Amount must be positive' });
+
+    // Update the expense fields
+    expense.description = description || expense.description;
+    expense.category = category || expense.category;
+    expense.totalAmountPaisa = totalAmountPaisa;
+    await expense.save({ session });
+
+    // Recalculate splits — delete old, insert new
+    await ExpenseSplit.deleteMany({ expenseId }, { session });
+
+    const shares = splitEqually(totalAmountPaisa, splitAmong);
+    const splitDocs = shares.map(({ userId, amountPaisa }) => ({
+      expenseId: expense._id,
+      groupId,
+      owedByUserId: userId,
+      owedToUserId: expense.paidByUserId,
+      amountPaisa,
+      isSettled: userId.toString() === expense.paidByUserId.toString(),
+    }));
+    await ExpenseSplit.insertMany(splitDocs, { session });
+
+    await session.commitTransaction();
+    res.json({ expense });
+  } catch (err) {
+    await session.abortTransaction();
+    res.status(500).json({ message: err.message });
+  } finally {
+    session.endSession();
+  }
+}
+
 async function deleteExpense(req, res) {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -115,4 +165,4 @@ async function deleteExpense(req, res) {
   }
 }
 
-module.exports = { addExpense, listExpenses, getExpense, deleteExpense };
+module.exports = { addExpense, listExpenses, getExpense, editExpense, deleteExpense };
