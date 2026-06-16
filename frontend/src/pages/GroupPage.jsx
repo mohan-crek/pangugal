@@ -110,6 +110,11 @@ export default function GroupPage() {
                     Paid by <strong>{exp.paidByUserId?.name}</strong> · {new Date(exp.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                     <span style={S.catBadge}>{exp.category}</span>
                   </p>
+                  {exp.sharedWith?.length > 0 && (
+                    <p style={S.sharedWith}>
+                      Shared with: {exp.sharedWith.map(u => u.name).join(', ')}
+                    </p>
+                  )}
                 </div>
                 <div style={S.expRight}>
                   <span style={S.expAmount}>₹{(exp.totalAmountPaisa / 100).toFixed(2)}</span>
@@ -216,6 +221,7 @@ const S = {
   expDesc: { fontSize: 15, fontWeight: 600 },
   expMeta: { fontSize: 12, color: '#888', marginTop: 2 },
   catBadge: { marginLeft: 8, background: '#f0f0ff', color: '#667eea', padding: '1px 8px', borderRadius: 10, fontSize: 11 },
+  sharedWith: { fontSize: 12, color: '#999', marginTop: 4 },
   expRight: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 },
   expAmount: { fontSize: 17, fontWeight: 700, color: '#1a1a2e' },
   expActions: { display: 'flex', gap: 6, alignItems: 'center' },

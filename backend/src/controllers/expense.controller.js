@@ -69,7 +69,24 @@ async function listExpenses(req, res) {
       .limit(parseInt(limit))
       .populate('paidByUserId', 'name');
 
-    res.json({ expenses });
+    // attach split members to each expense
+    const expenseIds = expenses.map(e => e._id);
+    const splits = await ExpenseSplit.find({ expenseId: { $in: expenseIds } })
+      .populate('owedByUserId', 'name');
+
+    const splitMap = {};
+    splits.forEach(s => {
+      const eid = s.expenseId.toString();
+      if (!splitMap[eid]) splitMap[eid] = [];
+      splitMap[eid].push({ _id: s.owedByUserId._id, name: s.owedByUserId.name });
+    });
+
+    const result = expenses.map(e => ({
+      ...e.toObject(),
+      sharedWith: splitMap[e._id.toString()] || [],
+    }));
+
+    res.json({ expenses: result });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
