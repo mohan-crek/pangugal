@@ -29,6 +29,7 @@ export default function GroupPage() {
   const { data: expensesData } = useQuery({
     queryKey: ['expenses', groupId],
     queryFn: () => api.get(`/groups/${groupId}/expenses`).then(r => r.data),
+    staleTime: 0,
   });
 
   const { data: dashData } = useQuery({
@@ -122,12 +123,14 @@ export default function GroupPage() {
           {activeTab === 'expenses' && (
             <div style={S.countBadge}>
               <div style={S.countLeft}>
-                <span style={S.countNum}>{expenses.length}</span>
+                <span style={S.countNum}>
+                  {(filterMember || filterCategory) ? expenses.length : (dashData?.totalExpenseCount ?? allExpenses.length)}
+                </span>
                 <span style={S.countLabel}>
                   {(filterMember || filterCategory) ? 'filtered' : 'expenses'}
                 </span>
                 {(filterMember || filterCategory) && (
-                  <span style={S.countTotal}> / {allExpenses.length}</span>
+                  <span style={S.countTotal}> / {dashData?.totalExpenseCount ?? allExpenses.length}</span>
                 )}
               </div>
               <div style={S.countDivider} />

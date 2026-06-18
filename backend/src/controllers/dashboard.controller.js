@@ -51,11 +51,12 @@ async function groupDashboard(req, res) {
     // Total group expense
     const totalAgg = await Expense.aggregate([
       { $match: { groupId: require('mongoose').Types.ObjectId.createFromHexString(groupId) } },
-      { $group: { _id: null, total: { $sum: '$totalAmountPaisa' } } },
+      { $group: { _id: null, total: { $sum: '$totalAmountPaisa' }, count: { $sum: 1 } } },
     ]);
     const totalGroupExpense = parseFloat(((totalAgg[0]?.total || 0) / 100).toFixed(2));
+    const totalExpenseCount = totalAgg[0]?.count || 0;
 
-    res.json({ balances, simplifiedTransactions: transactions, spendMap, totalGroupExpense });
+    res.json({ balances, simplifiedTransactions: transactions, spendMap, totalGroupExpense, totalExpenseCount });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
