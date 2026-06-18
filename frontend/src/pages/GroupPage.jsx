@@ -111,12 +111,25 @@ export default function GroupPage() {
         </div>
 
         {/* Tabs */}
-        <div style={S.tabs}>
-          {['expenses', 'balances', 'simplified'].map(t => (
-            <button key={t} style={{ ...S.tab, ...(activeTab === t ? S.activeTab : {}) }} onClick={() => setActiveTab(t)}>
-              {t === 'expenses' ? 'Expenses' : t === 'balances' ? 'Balances' : 'Simplify Debts'}
-            </button>
-          ))}
+        <div style={S.tabsRow}>
+          <div style={S.tabs}>
+            {['expenses', 'balances', 'simplified'].map(t => (
+              <button key={t} style={{ ...S.tab, ...(activeTab === t ? S.activeTab : {}) }} onClick={() => setActiveTab(t)}>
+                {t === 'expenses' ? 'Expenses' : t === 'balances' ? 'Balances' : 'Simplify Debts'}
+              </button>
+            ))}
+          </div>
+          {activeTab === 'expenses' && (
+            <div style={S.countBadge}>
+              <span style={S.countNum}>{expenses.length}</span>
+              <span style={S.countLabel}>
+                {(filterMember || filterCategory) ? 'filtered' : 'expenses'}
+              </span>
+              {(filterMember || filterCategory) && (
+                <span style={S.countTotal}> of {allExpenses.length}</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Expenses Tab */}
@@ -273,7 +286,12 @@ const S = {
   memberChipActive: { background: '#eef0ff', boxShadow: '0 0 0 2px #667eea' },
   avatar: { width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg, #667eea, #764ba2)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 },
   memberChipName: { fontSize: 13, fontWeight: 500 },
-  tabs: { display: 'flex', gap: 0, background: '#fff', borderRadius: 10, padding: 4, marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
+  tabsRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12 },
+  tabs: { display: 'flex', gap: 0, background: '#fff', borderRadius: 10, padding: 4, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', flex: 1 },
+  countBadge: { display: 'flex', alignItems: 'baseline', gap: 4, background: '#fff', borderRadius: 10, padding: '6px 14px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', whiteSpace: 'nowrap' },
+  countNum: { fontSize: 20, fontWeight: 800, color: '#667eea' },
+  countLabel: { fontSize: 12, color: '#888', fontWeight: 500 },
+  countTotal: { fontSize: 12, color: '#bbb' },
   tab: { flex: 1, padding: '9px 0', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 14, color: '#888', borderRadius: 8, fontWeight: 500 },
   activeTab: { background: '#667eea', color: '#fff', fontWeight: 700 },
   list: { display: 'flex', flexDirection: 'column', gap: 10 },
