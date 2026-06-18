@@ -56,7 +56,7 @@ async function addExpense(req, res) {
 async function listExpenses(req, res) {
   try {
     const { groupId } = req.params;
-    const { limit = 20, before } = req.query;
+    const { before } = req.query;
 
     const membership = await GroupMember.findOne({ groupId, userId: req.user._id, isActive: true });
     if (!membership) return res.status(403).json({ message: 'Not a member' });
@@ -64,9 +64,9 @@ async function listExpenses(req, res) {
     const query = { groupId };
     if (before) query._id = { $lt: new mongoose.Types.ObjectId(before) };
 
+    // No limit — load all expenses for the group (groups rarely exceed a few hundred)
     const expenses = await Expense.find(query)
-      .sort({ _id: -1 })
-      .limit(parseInt(limit))
+      .sort({ date: -1, _id: -1 })
       .populate('paidByUserId', 'name');
 
     // attach split members to each expense

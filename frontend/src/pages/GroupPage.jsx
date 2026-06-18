@@ -133,7 +133,11 @@ export default function GroupPage() {
               <div style={S.countDivider} />
               <div style={S.countRight}>
                 <span style={S.countAmount}>
-                  ₹{(expenses.reduce((t, e) => t + e.totalAmountPaisa, 0) / 100).toFixed(2)}
+                  ₹{(
+                    (filterMember || filterCategory)
+                      ? expenses.reduce((t, e) => t + e.totalAmountPaisa, 0) / 100
+                      : (dashData?.totalGroupExpense || 0)
+                  ).toFixed(2)}
                 </span>
                 <span style={S.countLabel}>total</span>
               </div>
