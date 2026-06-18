@@ -94,12 +94,24 @@ async function overallSummary(req, res) {
 async function settleUp(req, res) {
   try {
     const { groupId } = req.params;
-    const { owedByUserId } = req.body;
+    const { owedByUserId, owedToUserId } = req.body;
 
-    await ExpenseSplit.updateMany(
-      { groupId, owedByUserId, owedToUserId: req.user._id, isSettled: false },
-      { isSettled: true, settledAt: new Date() }
-    );
+    // Support both directions — either party can mark settled
+    const filter = { groupId, isSettled: false };
+    if (owedByUserId && owedToUserId) {
+      // settle between two specific people (both directions)
+      filter.$or = [
+        { owedByUserId, owedToUserId },
+        { owedByUserId: owedToUserId, owedToUserId: owedByUserId },
+      ];
+    } else if (owedByUserId) {
+      filter.owedByUserId = owedByUserId;
+      filter.owedToUserId = req.user._id;
+    } else {
+      return res.status(400).json({ message: 'owedByUserId required' });
+    }
+
+    await ExpenseSplit.updateMany(filter, { isSettled: true, settledAt: new Date() });
     res.json({ message: 'Settled' });
   } catch (err) {
     res.status(500).json({ message: err.message });

@@ -6,6 +6,7 @@ import DashboardPage from './pages/DashboardPage';
 import GroupPage from './pages/GroupPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
+import ProfilePage from './pages/ProfilePage';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -20,6 +21,7 @@ export default function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
       <Route path="/groups/:groupId" element={<PrivateRoute><GroupPage /></PrivateRoute>} />
+      <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
       <Route path="/admin/login" element={<AdminLoginPage />} />
       <Route path="/admin" element={<AdminDashboardPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />

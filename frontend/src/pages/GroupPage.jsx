@@ -9,8 +9,6 @@ import InviteMemberModal from '../components/InviteMemberModal';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 
-const CATEGORY_EMOJI = { food: '🍔', travel: '✈️', utilities: '💡', rent: '🏠', entertainment: '🎬', shopping: '🛍️', other: '💸' };
-
 export default function GroupPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
@@ -19,6 +17,8 @@ export default function GroupPage() {
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
+  const [filterMember, setFilterMember] = useState(null); // userId or null = all
+  const [filterCategory, setFilterCategory] = useState(null);
   const [activeTab, setActiveTab] = useState('expenses');
 
   const { data: groupData, isLoading: groupLoading } = useQuery({
@@ -57,7 +57,14 @@ export default function GroupPage() {
   if (!groupData) return <div><Navbar /><div style={S.loading}>Group not found</div></div>;
 
   const { group, members } = groupData;
-  const expenses = expensesData?.expenses || [];
+  const allExpenses = expensesData?.expenses || [];
+  const expenses = allExpenses
+    .filter(e => !filterMember || e.paidByUserId?._id === filterMember)
+    .filter(e => !filterCategory || e.category === filterCategory);
+  const filterName = filterMember ? members.find(m => m.userId._id === filterMember)?.userId?.name : null;
+
+  const CATEGORIES = ['food', 'travel', 'utilities', 'rent', 'entertainment', 'shopping', 'other'];
+  const CATEGORY_EMOJI = { food: '🍔', travel: '✈️', utilities: '💡', rent: '🏠', entertainment: '🎬', shopping: '🛍️', other: '💸' };
   const balances = dashData?.balances || [];
   const simplified = dashData?.simplifiedTransactions || [];
 
@@ -78,14 +85,29 @@ export default function GroupPage() {
           </div>
         </div>
 
-        {/* Members strip */}
+        {/* Members strip — click to filter expenses */}
         <div style={S.membersStrip}>
-          {members.map(m => (
-            <div key={m._id} style={S.memberChip}>
-              <div style={S.avatar}>{m.userId.name[0].toUpperCase()}</div>
-              <span style={S.memberChipName}>{m.userId.name}</span>
-            </div>
-          ))}
+          <div
+            style={{ ...S.memberChip, ...(filterMember === null ? S.memberChipActive : {}) }}
+            onClick={() => setFilterMember(null)}
+          >
+            <div style={{ ...S.avatar, background: filterMember === null ? '#667eea' : '#ccc' }}>All</div>
+          </div>
+          {members.map(m => {
+            const active = filterMember === m.userId._id;
+            return (
+              <div
+                key={m._id}
+                style={{ ...S.memberChip, ...(active ? S.memberChipActive : {}) }}
+                onClick={() => setFilterMember(active ? null : m.userId._id)}
+              >
+                <div style={{ ...S.avatar, background: active ? '#667eea' : 'linear-gradient(135deg, #667eea, #764ba2)' }}>
+                  {m.userId.name[0].toUpperCase()}
+                </div>
+                <span style={S.memberChipName}>{m.userId.name}</span>
+              </div>
+            );
+          })}
         </div>
 
         {/* Tabs */}
@@ -100,7 +122,32 @@ export default function GroupPage() {
         {/* Expenses Tab */}
         {activeTab === 'expenses' && (
           <div style={S.list}>
-            {expenses.length === 0 && <p style={S.empty}>No expenses yet. Add one!</p>}
+            {/* Category filter pills */}
+            <div style={S.catFilter}>
+              <button
+                style={{ ...S.catPill, ...(filterCategory === null ? S.catPillActive : {}) }}
+                onClick={() => setFilterCategory(null)}
+              >All</button>
+              {CATEGORIES.map(c => (
+                <button
+                  key={c}
+                  style={{ ...S.catPill, ...(filterCategory === c ? S.catPillActive : {}) }}
+                  onClick={() => setFilterCategory(filterCategory === c ? null : c)}
+                >
+                  {CATEGORY_EMOJI[c]} {c.charAt(0).toUpperCase() + c.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            {filterName && (
+              <div style={S.filterBanner}>
+                Showing expenses paid by <strong>{filterName}</strong>
+                <button style={S.clearFilter} onClick={() => setFilterMember(null)}>✕ Clear</button>
+              </div>
+            )}
+            {expenses.length === 0 && (
+              <p style={S.empty}>{filterName ? `No expenses paid by ${filterName}` : 'No expenses yet. Add one!'}</p>
+            )}
             {expenses.map(exp => (
               <div key={exp._id} style={S.expenseCard}>
                 <div style={S.catEmoji}>{CATEGORY_EMOJI[exp.category] || '💸'}</div>
@@ -162,25 +209,40 @@ export default function GroupPage() {
         {/* Simplified Tab */}
         {activeTab === 'simplified' && (
           <div style={S.list}>
-            {simplified.length === 0 && <p style={S.empty}>No debts to settle!</p>}
+            {simplified.length === 0 && <p style={S.empty}>🎉 Everyone is settled up!</p>}
             {simplified.map((t, i) => {
-              const isMe = t.from?._id === user?._id;
+              const iAmDebtor = t.from?._id === user?._id;
+              const iAmCreditor = t.to?._id === user?._id;
+              const canSettle = iAmDebtor || iAmCreditor;
               return (
                 <div key={i} style={S.simplCard}>
-                  <div style={S.simplText}>
-                    <strong>{t.from?.name}</strong> owes <strong>{t.to?.name}</strong>
-                    <span style={S.simplAmount}> ₹{t.amount.toFixed(2)}</span>
+                  <div>
+                    <div style={S.simplText}>
+                      <strong style={{ color: iAmDebtor ? '#e53e3e' : '#333' }}>{t.from?.name}</strong>
+                      <span style={S.simplArrow}> owes </span>
+                      <strong style={{ color: iAmCreditor ? '#38a169' : '#333' }}>{t.to?.name}</strong>
+                    </div>
+                    <div style={S.simplAmount}>₹{t.amount.toFixed(2)}</div>
+                    {iAmDebtor && <p style={S.simplHint}>You need to pay {t.to?.name}</p>}
+                    {iAmCreditor && <p style={{ ...S.simplHint, color: '#38a169' }}>{t.from?.name} needs to pay you</p>}
                   </div>
-                  {isMe && (
-                    <button style={S.settleBtn} onClick={() => settleUp.mutate({ owedByUserId: t.from._id })}>
-                      Mark Settled
+                  {canSettle && (
+                    <button
+                      style={S.settleBtn}
+                      onClick={() => {
+                        if (window.confirm(`Mark ₹${t.amount.toFixed(2)} between ${t.from?.name} and ${t.to?.name} as settled?`)) {
+                          settleUp.mutate({ owedByUserId: t.from?._id, owedToUserId: t.to?._id });
+                        }
+                      }}
+                    >
+                      ✓ Mark Settled
                     </button>
                   )}
                 </div>
               );
             })}
             {simplified.length > 0 && (
-              <p style={S.simplNote}>These are optimized transactions — settling these clears all debts in this group.</p>
+              <p style={S.simplNote}>Optimized transactions — settling these clears all debts in this group.</p>
             )}
           </div>
         )}
@@ -207,7 +269,8 @@ const S = {
   inviteBtn: { padding: '8px 16px', border: '1.5px solid #667eea', color: '#667eea', background: 'transparent', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 14 },
   addBtn: { padding: '8px 16px', background: '#667eea', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 14 },
   membersStrip: { display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' },
-  memberChip: { display: 'flex', alignItems: 'center', gap: 8, background: '#fff', borderRadius: 20, padding: '6px 14px 6px 8px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' },
+  memberChip: { display: 'flex', alignItems: 'center', gap: 8, background: '#fff', borderRadius: 20, padding: '6px 14px 6px 8px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', cursor: 'pointer', transition: 'all 0.15s' },
+  memberChipActive: { background: '#eef0ff', boxShadow: '0 0 0 2px #667eea' },
   avatar: { width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg, #667eea, #764ba2)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 },
   memberChipName: { fontSize: 13, fontWeight: 500 },
   tabs: { display: 'flex', gap: 0, background: '#fff', borderRadius: 10, padding: 4, marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
@@ -222,6 +285,8 @@ const S = {
   expMeta: { fontSize: 12, color: '#888', marginTop: 2 },
   catBadge: { marginLeft: 8, background: '#f0f0ff', color: '#667eea', padding: '1px 8px', borderRadius: 10, fontSize: 11 },
   sharedWith: { fontSize: 12, color: '#999', marginTop: 4 },
+  filterBanner: { background: '#eef0ff', border: '1px solid #c7d0ff', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#444', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  clearFilter: { background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', fontSize: 13, fontWeight: 600 },
   expRight: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 },
   expAmount: { fontSize: 17, fontWeight: 700, color: '#1a1a2e' },
   expActions: { display: 'flex', gap: 6, alignItems: 'center' },
@@ -232,11 +297,16 @@ const S = {
   balName: { fontSize: 15, fontWeight: 600 },
   balShare: { fontSize: 12, color: '#888' },
   balAmount: { fontSize: 15, fontWeight: 700 },
-  simplCard: { background: '#fff', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' },
-  simplText: { fontSize: 15, color: '#333' },
-  simplAmount: { color: '#e53e3e', fontWeight: 700 },
-  settleBtn: { padding: '7px 14px', background: '#38a169', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 },
+  simplCard: { background: '#fff', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' },
+  simplText: { fontSize: 15, color: '#333', marginBottom: 4 },
+  simplArrow: { color: '#aaa' },
+  simplAmount: { fontSize: 20, fontWeight: 800, color: '#e53e3e', marginBottom: 2 },
+  simplHint: { fontSize: 12, color: '#888', marginTop: 2 },
+  settleBtn: { padding: '9px 16px', background: '#38a169', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' },
   simplNote: { fontSize: 12, color: '#aaa', textAlign: 'center', padding: '8px 0' },
+  catFilter: { display: 'flex', gap: 8, flexWrap: 'wrap', paddingBottom: 4 },
+  catPill: { padding: '6px 12px', borderRadius: 20, border: '1.5px solid #e0e0e0', background: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500, color: '#555' },
+  catPillActive: { background: '#667eea', color: '#fff', border: '1.5px solid #667eea' },
   totalBanner: { background: 'linear-gradient(135deg, #667eea, #764ba2)', borderRadius: 12, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   totalLabel: { fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: 500 },
   totalAmount: { fontSize: 24, fontWeight: 800, color: '#fff' },

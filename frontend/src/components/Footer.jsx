@@ -3,7 +3,7 @@ export default function Footer() {
     <footer style={S.footer}>
       <span style={S.text}>Pangugal</span>
       <span style={S.dot}>·</span>
-      <span style={S.version}>v1.1.0</span>
+      <span style={S.version}>v2.1.0</span>
       <span style={S.dot}>·</span>
       <span style={S.text}>Split expenses with friends</span>
     </footer>
