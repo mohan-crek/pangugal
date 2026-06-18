@@ -121,13 +121,22 @@ export default function GroupPage() {
           </div>
           {activeTab === 'expenses' && (
             <div style={S.countBadge}>
-              <span style={S.countNum}>{expenses.length}</span>
-              <span style={S.countLabel}>
-                {(filterMember || filterCategory) ? 'filtered' : 'expenses'}
-              </span>
-              {(filterMember || filterCategory) && (
-                <span style={S.countTotal}> of {allExpenses.length}</span>
-              )}
+              <div style={S.countLeft}>
+                <span style={S.countNum}>{expenses.length}</span>
+                <span style={S.countLabel}>
+                  {(filterMember || filterCategory) ? 'filtered' : 'expenses'}
+                </span>
+                {(filterMember || filterCategory) && (
+                  <span style={S.countTotal}> / {allExpenses.length}</span>
+                )}
+              </div>
+              <div style={S.countDivider} />
+              <div style={S.countRight}>
+                <span style={S.countAmount}>
+                  ₹{(expenses.reduce((t, e) => t + e.totalAmountPaisa, 0) / 100).toFixed(2)}
+                </span>
+                <span style={S.countLabel}>total</span>
+              </div>
             </div>
           )}
         </div>
@@ -288,10 +297,14 @@ const S = {
   memberChipName: { fontSize: 13, fontWeight: 500 },
   tabsRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12 },
   tabs: { display: 'flex', gap: 0, background: '#fff', borderRadius: 10, padding: 4, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', flex: 1 },
-  countBadge: { display: 'flex', alignItems: 'baseline', gap: 4, background: '#fff', borderRadius: 10, padding: '6px 14px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', whiteSpace: 'nowrap' },
-  countNum: { fontSize: 20, fontWeight: 800, color: '#667eea' },
-  countLabel: { fontSize: 12, color: '#888', fontWeight: 500 },
-  countTotal: { fontSize: 12, color: '#bbb' },
+  countBadge: { display: 'flex', alignItems: 'center', gap: 10, background: '#fff', borderRadius: 10, padding: '8px 14px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', whiteSpace: 'nowrap' },
+  countLeft: { display: 'flex', alignItems: 'baseline', gap: 4 },
+  countRight: { display: 'flex', alignItems: 'baseline', gap: 4 },
+  countDivider: { width: 1, height: 24, background: '#eee' },
+  countNum: { fontSize: 18, fontWeight: 800, color: '#667eea' },
+  countAmount: { fontSize: 16, fontWeight: 800, color: '#38a169' },
+  countLabel: { fontSize: 11, color: '#aaa', fontWeight: 500 },
+  countTotal: { fontSize: 11, color: '#ccc' },
   tab: { flex: 1, padding: '9px 0', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 14, color: '#888', borderRadius: 8, fontWeight: 500 },
   activeTab: { background: '#667eea', color: '#fff', fontWeight: 700 },
   list: { display: 'flex', flexDirection: 'column', gap: 10 },
