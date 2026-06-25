@@ -14,8 +14,9 @@ async function groupDashboard(req, res) {
     const membership = await GroupMember.findOne({ groupId, userId: req.user._id, isActive: true });
     if (!membership) return res.status(403).json({ message: 'Not a member' });
 
-    const splits = await ExpenseSplit.find({ groupId, isSettled: false });
-    const balanceMap = computeBalances(splits);
+    const splits = await ExpenseSplit.find({ groupId });
+    const unsettledSplits = splits.filter(s => !s.isSettled);
+    const balanceMap = computeBalances(unsettledSplits);
     const simplified = simplifyDebts(balanceMap);
 
     // Fetch user names for all referenced IDs
@@ -38,6 +39,24 @@ async function groupDashboard(req, res) {
       to: userMap[t.to],
       amount: paisaToRupees(t.amountPaisa),
       amountPaisa: t.amountPaisa,
+      isSettled: false,
+    }));
+
+    // Build settled transactions between pairs
+    const settledSplits = splits.filter(s => s.isSettled && s.owedByUserId.toString() !== s.owedToUserId.toString());
+    const settledPairs = {};
+    settledSplits.forEach(s => {
+      const key = [s.owedByUserId.toString(), s.owedToUserId.toString()].sort().join('-');
+      if (!settledPairs[key]) settledPairs[key] = { from: s.owedByUserId.toString(), to: s.owedToUserId.toString(), amountPaisa: 0, settledAt: s.settledAt };
+      settledPairs[key].amountPaisa += s.amountPaisa;
+    });
+    const settledTransactions = Object.values(settledPairs).map(t => ({
+      from: userMap[t.from],
+      to: userMap[t.to],
+      amount: paisaToRupees(t.amountPaisa),
+      amountPaisa: t.amountPaisa,
+      isSettled: true,
+      settledAt: t.settledAt,
     }));
 
     // Per-person total spending
@@ -56,7 +75,7 @@ async function groupDashboard(req, res) {
     const totalGroupExpense = parseFloat(((totalAgg[0]?.total || 0) / 100).toFixed(2));
     const totalExpenseCount = totalAgg[0]?.count || 0;
 
-    res.json({ balances, simplifiedTransactions: transactions, spendMap, totalGroupExpense, totalExpenseCount });
+    res.json({ balances, simplifiedTransactions: [...transactions, ...settledTransactions], spendMap, totalGroupExpense, totalExpenseCount });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

@@ -242,20 +242,25 @@ export default function GroupPage() {
             {simplified.map((t, i) => {
               const iAmDebtor = t.from?._id === user?._id;
               const iAmCreditor = t.to?._id === user?._id;
-              const canSettle = iAmDebtor || iAmCreditor;
+              const canSettle = (iAmDebtor || iAmCreditor) && !t.isSettled;
               return (
-                <div key={i} style={S.simplCard}>
+                <div key={i} style={{ ...S.simplCard, ...(t.isSettled ? S.simplCardSettled : {}) }}>
                   <div>
                     <div style={S.simplText}>
-                      <strong style={{ color: iAmDebtor ? '#e53e3e' : '#333' }}>{t.from?.name}</strong>
+                      <strong style={{ color: t.isSettled ? '#aaa' : iAmDebtor ? '#e53e3e' : '#333' }}>{t.from?.name}</strong>
                       <span style={S.simplArrow}> owes </span>
-                      <strong style={{ color: iAmCreditor ? '#38a169' : '#333' }}>{t.to?.name}</strong>
+                      <strong style={{ color: t.isSettled ? '#aaa' : iAmCreditor ? '#38a169' : '#333' }}>{t.to?.name}</strong>
                     </div>
-                    <div style={S.simplAmount}>₹{t.amount.toFixed(2)}</div>
-                    {iAmDebtor && <p style={S.simplHint}>You need to pay {t.to?.name}</p>}
-                    {iAmCreditor && <p style={{ ...S.simplHint, color: '#38a169' }}>{t.from?.name} needs to pay you</p>}
+                    <div style={{ ...S.simplAmount, color: t.isSettled ? '#aaa' : '#e53e3e', textDecoration: t.isSettled ? 'line-through' : 'none' }}>
+                      ₹{t.amount.toFixed(2)}
+                    </div>
+                    {!t.isSettled && iAmDebtor && <p style={S.simplHint}>You need to pay {t.to?.name}</p>}
+                    {!t.isSettled && iAmCreditor && <p style={{ ...S.simplHint, color: '#38a169' }}>{t.from?.name} needs to pay you</p>}
+                    {t.isSettled && <p style={S.simplHint}>Settled on {new Date(t.settledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>}
                   </div>
-                  {canSettle && (
+                  {t.isSettled ? (
+                    <div style={S.settledBadge}>✓ Settled</div>
+                  ) : canSettle ? (
                     <button
                       style={S.settleBtn}
                       onClick={() => {
@@ -266,7 +271,7 @@ export default function GroupPage() {
                     >
                       ✓ Mark Settled
                     </button>
-                  )}
+                  ) : null}
                 </div>
               );
             })}
@@ -336,6 +341,8 @@ const S = {
   balShare: { fontSize: 12, color: '#888' },
   balAmount: { fontSize: 15, fontWeight: 700 },
   simplCard: { background: '#fff', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' },
+  simplCardSettled: { background: '#f9fdf9', border: '1.5px solid #c6f6d5', boxShadow: 'none' },
+  settledBadge: { padding: '7px 14px', background: '#c6f6d5', color: '#276749', borderRadius: 8, fontWeight: 700, fontSize: 13 },
   simplText: { fontSize: 15, color: '#333', marginBottom: 4 },
   simplArrow: { color: '#aaa' },
   simplAmount: { fontSize: 20, fontWeight: 800, color: '#e53e3e', marginBottom: 2 },
